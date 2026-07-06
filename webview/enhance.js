@@ -265,9 +265,7 @@
     s = s.replace(/\\\(([\s\S]+?)\\\)/g, (m, f) => stash(f.trim(), false));
     s = s.replace(/\$([^$\n]+?)\$/g, (m, f) => {
       const cleaned = f.trim().replace(/\s+/g, ' ');
-      const looksLikeLatex = cleaned.length <= 2 || /[\\_^{}]/.test(cleaned) ||
-        /\b(alpha|beta|gamma|delta|theta|lambda|mu|sigma|pi|omega|sum|int|frac|sqrt)\b/i.test(cleaned);
-      if (!looksLikeLatex) return m;
+      if (!cleaned) return m;
       return stash(cleaned, false);
     });
     if (!hasFormula) return null;
@@ -299,9 +297,9 @@
             el.closest('[class*="sessionName"]')) return;
         const text = el.textContent;
         if (!text || !MATH_RE.test(text)) return;
-        // 只取最内层: 若有子元素也含公式分隔符, 交给更深的块处理
+        // 只在子元素自己就是独立块时才下放处理, 避免 li 等容器中的行内公式被跳过
         for (const c of el.children) {
-          if (MATH_RE.test(c.textContent || '')) return;
+          if (MATH_RE.test(c.textContent || '') && /^(P|DIV|LI|TD|TH|BLOCKQUOTE|DD|DT|SPAN)$/.test(c.tagName)) return;
         }
         blocks.push(el);
       });
