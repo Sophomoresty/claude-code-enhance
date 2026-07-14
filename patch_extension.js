@@ -24,15 +24,20 @@ function findExtensionDir() {
   }
 
   const latest = dirs.sort().pop();
-  return path.join(extBase, latest);
+  return { dir: path.join(extBase, latest), version: latest };
 }
 
-const extDir = findExtensionDir();
+const { dir: extDir, version: verStr } = findExtensionDir();
 const extensionJs = path.join(extDir, 'extension.js');
 const enhanceJs = path.join(__dirname, 'webview', 'enhance.js');
 
+// 解析版本号
+const verMatch = verStr.match(/(\d+\.\d+\.\d+)/);
+const version = verMatch ? verMatch[1] : '0.0.0';
+const isV2_1_201 = version >= '2.1.201';
+
 console.log('[Patch] Extension dir:', extDir);
-console.log('[Patch] Applying patch v7...');
+console.log('[Patch] Detected version:', version);
 
 // 复制 enhance.js
 const targetEnhance = path.join(extDir, 'webview', 'enhance.js');
@@ -86,10 +91,18 @@ if (fontMatch) {
 // ========== 修改 4: 注入 enhance.js ==========
 if (!content.includes('enhance.js')) {
   // 找到 script 标签模式
-  const scriptMatch = content.match(/nonce="\$\{(\w)\}" src="\$\{(\w)\}" type="module"><\/script>/);
+  const scriptMatch = content.match(/nonce="\$\{(\w+)\}" src="\$\{(\w+)\}" type="module"><\/script>/);
   if (scriptMatch) {
     const [full, nonceVar, srcVar] = scriptMatch;
-    const replacement = `nonce="\${${nonceVar}}" src="\${${srcVar}}" type="module"></script><script nonce="\${${nonceVar}}" src="\${z.asWebviewUri(F0.Uri.joinPath(this.extensionUri,"webview","enhance.js"))}"></script>`;
+
+    // e,Yt,z,F0  这些变量名不同，按版本处理
+    let replacement;
+    if (isV2_1_201) {
+      replacement = `nonce="\${${nonceVar}}" src="\${${srcVar}}" type="module"></script><script nonce="\${${nonceVar}}" src="\${e.asWebviewUri(yt.Uri.joinPath(this.extensionUri,"webview","enhance.js"))}"></script>`;
+    } else {
+      replacement = `nonce="\${${nonceVar}}" src="\${${srcVar}}" type="module"></script><script nonce="\${${nonceVar}}" src="\${z.asWebviewUri(F0.Uri.joinPath(this.extensionUri,"webview","enhance.js"))}"></script>`;
+    }
+
     content = content.replace(full, replacement);
     modified = true;
     console.log('[Patch] Injected enhance.js');
